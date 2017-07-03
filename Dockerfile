@@ -11,3 +11,5 @@ RUN chown -R redash /app
 USER redash
 
 ENTRYPOINT ["/app/bin/docker-entrypoint"]
+
+EXPOSE 5000
