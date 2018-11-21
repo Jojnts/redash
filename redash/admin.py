@@ -3,7 +3,6 @@ from flask_admin import Admin
 from flask_admin.base import MenuLink
 from flask_admin.contrib.sqla import ModelView
 from flask_admin.contrib.sqla.form import AdminModelConverter
-from flask_admin.form.widgets import DateTimePickerWidget
 from wtforms import fields
 from wtforms.widgets import TextInput
 
@@ -55,7 +54,8 @@ class QueryResultModelView(BaseModelView):
 
 class QueryModelView(BaseModelView):
     column_exclude_list = ('latest_query_data',)
-    form_excluded_columns = ('version', 'visualizations', 'alerts', 'org', 'created_at', 'updated_at', 'latest_query_data')
+    form_excluded_columns = ('version', 'visualizations', 'alerts', 'org', 'created_at',
+                             'updated_at', 'latest_query_data', 'search_vector')
 
 
 class DashboardModelView(BaseModelView):

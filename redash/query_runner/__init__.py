@@ -1,8 +1,6 @@
-import sys
 import logging
 import json
 
-from collections import OrderedDict
 from redash import settings
 
 logger = logging.getLogger(__name__)
@@ -42,6 +40,10 @@ SUPPORTED_COLUMN_TYPES = set([
 
 
 class InterruptException(Exception):
+    pass
+
+
+class NotSupported(Exception):
     pass
 
 
@@ -102,7 +104,7 @@ class BaseQueryRunner(object):
         return new_columns
 
     def get_schema(self, get_stats=False):
-        return []
+        raise NotSupported()
 
     def _run_query_internal(self, query):
         results, error = self.run_query(query, None)
@@ -121,8 +123,6 @@ class BaseQueryRunner(object):
 
 
 class BaseSQLQueryRunner(BaseQueryRunner):
-    def __init__(self, configuration):
-        super(BaseSQLQueryRunner, self).__init__(configuration)
 
     def get_schema(self, get_stats=False):
         schema_dict = {}

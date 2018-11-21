@@ -1,12 +1,12 @@
-import os
 import sys
 import logging
 import urlparse
+import urllib
 import redis
-from flask import Flask, safe_join
+from flask import Flask
 from flask_sslify import SSLify
 from werkzeug.contrib.fixers import ProxyFix
-from werkzeug.routing import BaseConverter, ValidationError
+from werkzeug.routing import BaseConverter
 from statsd import StatsClient
 from flask_mail import Mail
 from flask_limiter import Limiter
@@ -18,7 +18,7 @@ from redash.query_runner import import_query_runners
 from redash.destinations import import_destinations
 
 
-__version__ = '4.0.0'
+__version__ = '5.0.2'
 
 
 def setup_logging():
@@ -53,8 +53,9 @@ def create_redis_connection():
             redis_db = redis_url.path[1]
         else:
             redis_db = 0
-
-        r = redis.StrictRedis(host=redis_url.hostname, port=redis_url.port, db=redis_db, password=redis_url.password)
+        # Redis passwords might be quoted with special characters
+        redis_password = redis_url.password and urllib.unquote(redis_url.password)
+        r = redis.StrictRedis(host=redis_url.hostname, port=redis_url.port, db=redis_db, password=redis_password)
 
     return r
 
@@ -77,10 +78,10 @@ reset_new_version_status()
 class SlugConverter(BaseConverter):
     def to_python(self, value):
         # This is ay workaround for when we enable multi-org and some files are being called by the index rule:
-        for path in settings.STATIC_ASSETS_PATHS:
-            full_path = safe_join(path, value)
-            if os.path.isfile(full_path):
-                raise ValidationError()
+        # for path in settings.STATIC_ASSETS_PATHS:
+        #     full_path = safe_join(path, value)
+        #     if os.path.isfile(full_path):
+        #         raise ValidationError()
 
         return value
 
@@ -89,15 +90,17 @@ class SlugConverter(BaseConverter):
 
 
 def create_app(load_admin=True):
-    from redash import handlers
+    from redash import extensions, handlers
+    from redash.handlers.webpack import configure_webpack
+    from redash.handlers import chrome_logger
     from redash.admin import init_admin
     from redash.models import db
     from redash.authentication import setup_authentication
     from redash.metrics.request import provision_app
 
     app = Flask(__name__,
-                template_folder=settings.STATIC_ASSETS_PATHS[0],
-                static_folder=settings.STATIC_ASSETS_PATHS[-1],
+                template_folder=settings.STATIC_ASSETS_PATH,
+                static_folder=settings.STATIC_ASSETS_PATH,
                 static_path='/static')
 
     # Make sure we get the right referral address even behind proxies like nginx.
@@ -133,5 +136,8 @@ def create_app(load_admin=True):
     setup_authentication(app)
     limiter.init_app(app)
     handlers.init_app(app)
+    configure_webpack(app)
+    extensions.init_extensions(app)
+    chrome_logger.init_app(app)
 
     return app

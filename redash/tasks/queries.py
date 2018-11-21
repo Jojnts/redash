@@ -283,7 +283,7 @@ def refresh_queries():
                 logging.info("Skipping refresh of %s because datasource - %s is paused (%s).", query.id, query.data_source.name, query.data_source.pause_reason)
             else:
                 if query.options and len(query.options.get('parameters', [])) > 0:
-                    query_params = {p['name']: p['value']
+                    query_params = {p['name']: p.get('value')
                                     for p in query.options['parameters']}
                     query_text = pystache.render(query.query_text, query_params)
                 else:
@@ -422,6 +422,8 @@ class QueryExecutor(object):
             self.user = models.User.query.get(user_id)
         else:
             self.user = None
+        # Close DB connection to prevent holding a connection for a long time while the query is executing.
+        models.db.session.close()
         self.query_hash = gen_query_hash(self.query)
         self.scheduled_query = scheduled_query
         # Load existing tracker or create a new one if the job was created before code update:
@@ -460,26 +462,30 @@ class QueryExecutor(object):
         if error:
             self.tracker.update(state='failed')
             result = QueryExecutionError(error)
-            if self.scheduled_query:
+            if self.scheduled_query is not None:
+                self.scheduled_query = models.db.session.merge(self.scheduled_query, load=False)
                 self.scheduled_query.schedule_failures += 1
                 models.db.session.add(self.scheduled_query)
+            models.db.session.commit()
+            raise result
         else:
-            if (self.scheduled_query and
-                    self.scheduled_query.schedule_failures > 0):
+            if (self.scheduled_query and self.scheduled_query.schedule_failures > 0):
+                self.scheduled_query = models.db.session.merge(self.scheduled_query, load=False)
                 self.scheduled_query.schedule_failures = 0
                 models.db.session.add(self.scheduled_query)
             query_result, updated_query_ids = models.QueryResult.store_result(
-                self.data_source.org, self.data_source,
+                self.data_source.org_id, self.data_source,
                 self.query_hash, self.query, data,
                 run_time, utils.utcnow())
+            models.db.session.commit()  # make sure that alert sees the latest query result
             self._log_progress('checking_alerts')
             for query_id in updated_query_ids:
                 check_alerts_for_query.delay(query_id)
             self._log_progress('finished')
 
             result = query_result.id
-        models.db.session.commit()
-        return result
+            models.db.session.commit()
+            return result
 
     def _annotate_query(self, query_runner):
         if query_runner.annotate_query():

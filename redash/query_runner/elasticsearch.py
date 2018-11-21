@@ -271,7 +271,7 @@ class BaseElasticSearch(BaseQueryRunner):
 
                 result_rows.append(row)
         else:
-            raise Exception("Redash failed to parse the results it got from ElasticSearch.")
+            raise Exception("Redash failed to parse the results it got from Elasticsearch.")
 
     def test_connection(self):
         try:
@@ -286,8 +286,6 @@ class BaseElasticSearch(BaseQueryRunner):
 
 
 class Kibana(BaseElasticSearch):
-    def __init__(self, configuration):
-        super(Kibana, self).__init__(configuration)
 
     @classmethod
     def enabled(cls):
@@ -384,9 +382,6 @@ class Kibana(BaseElasticSearch):
 
 class ElasticSearch(BaseElasticSearch):
 
-    def __init__(self, configuration):
-        super(ElasticSearch, self).__init__(configuration)
-
     @classmethod
     def enabled(cls):
         return True
@@ -394,6 +389,10 @@ class ElasticSearch(BaseElasticSearch):
     @classmethod
     def annotate_query(cls):
         return False
+
+    @classmethod
+    def name(cls):
+        return 'Elasticsearch'
 
     def run_query(self, query, user):
         try:
@@ -416,10 +415,9 @@ class ElasticSearch(BaseElasticSearch):
             if error:
                 return None, error
 
-            params = {"source": json.dumps(query_dict)}
             logger.debug("Using URL: %s", url)
-            logger.debug("Using params : %s", params)
-            r = requests.get(url, params=params, auth=self.auth)
+            logger.debug("Using query: %s", query_dict)
+            r = requests.get(url, json=query_dict, auth=self.auth)
             r.raise_for_status()
             logger.debug("Result: %s", r.json())
 

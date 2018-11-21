@@ -1,11 +1,10 @@
-import hashlib
 import logging
 
 from flask import abort, flash, redirect, render_template, request, url_for
 
 from flask_login import current_user, login_required, login_user, logout_user
 from redash import __version__, limiter, models, settings
-from redash.authentication import current_org, get_login_url
+from redash.authentication import current_org, get_login_url, get_next_path
 from redash.authentication.account import (BadSignature, SignatureExpired,
                                            send_password_reset_email,
                                            validate_token)
@@ -55,11 +54,17 @@ def render_token_login_page(template, org_slug, token):
             login_user(user)
             models.db.session.commit()
             return redirect(url_for('redash.index', org_slug=org_slug))
-    if settings.GOOGLE_OAUTH_ENABLED:
-        google_auth_url = get_google_auth_url(url_for('redash.index', org_slug=org_slug))
-    else:
-        google_auth_url = ''
-    return render_template(template, google_auth_url=google_auth_url, user=user), status_code
+
+    google_auth_url = get_google_auth_url(url_for('redash.index', org_slug=org_slug))
+
+    return render_template(template,
+                           show_google_openid=settings.GOOGLE_OAUTH_ENABLED,
+                           google_auth_url=google_auth_url,
+                           show_saml_login=current_org.get_setting('auth_saml_enabled'),
+                           show_remote_user_login=settings.REMOTE_USER_LOGIN_ENABLED,
+                           show_ldap_login=settings.LDAP_LOGIN_ENABLED,
+                           org_slug=org_slug,
+                           user=user), status_code
 
 
 @routes.route(org_scoped_rule('/invite/<token>'), methods=['GET', 'POST'])
@@ -74,7 +79,7 @@ def reset(token, org_slug=None):
 
 @routes.route(org_scoped_rule('/forgot'), methods=['GET', 'POST'])
 def forgot_password(org_slug=None):
-    if not settings.PASSWORD_LOGIN_ENABLED:
+    if not current_org.get_setting('auth_password_login_enabled'):
         abort(404)
 
     submitted = False
@@ -101,26 +106,17 @@ def login(org_slug=None):
     elif current_org == None:
         return redirect('/')
 
-    index_url = url_for("redash.index", org_slug=org_slug)
-    next_path = request.args.get('next', index_url)
+    index_url = url_for('redash.index', org_slug=org_slug)
+    unsafe_next_path = request.args.get('next', index_url)
+    next_path = get_next_path(unsafe_next_path)
     if current_user.is_authenticated:
         return redirect(next_path)
-
-    if not settings.PASSWORD_LOGIN_ENABLED:
-        if settings.REMOTE_USER_LOGIN_ENABLED:
-            return redirect(url_for("remote_user_auth.login", next=next_path))
-        elif settings.SAML_LOGIN_ENABLED:
-            return redirect(url_for("saml_auth.sp_initiated", next=next_path))
-        elif settings.LDAP_LOGIN_ENABLED:
-            return redirect(url_for("ldap_auth.login", next=next_path))
-        else:
-            return redirect(url_for("google_oauth.authorize", next=next_path))
 
     if request.method == 'POST':
         try:
             org = current_org._get_current_object()
             user = models.User.get_by_email_and_org(request.form['email'], org)
-            if user and user.verify_password(request.form['password']):
+            if user and not user.is_disabled and user.verify_password(request.form['password']):
                 remember = ('remember' in request.form)
                 login_user(user, remember=remember)
                 return redirect(next_path)
@@ -137,7 +133,8 @@ def login(org_slug=None):
                            email=request.form.get('email', ''),
                            show_google_openid=settings.GOOGLE_OAUTH_ENABLED,
                            google_auth_url=google_auth_url,
-                           show_saml_login=settings.SAML_LOGIN_ENABLED,
+                           show_password_login=current_org.get_setting('auth_password_login_enabled'),
+                           show_saml_login=current_org.get_setting('auth_saml_enabled'),
                            show_remote_user_login=settings.REMOTE_USER_LOGIN_ENABLED,
                            show_ldap_login=settings.LDAP_LOGIN_ENABLED)
 
@@ -157,6 +154,16 @@ def base_href():
     return base_href
 
 
+def date_format_config():
+    date_format = current_org.get_setting('date_format')
+    date_format_list = set(["DD/MM/YY", "MM/DD/YY", "YYYY-MM-DD", settings.DATE_FORMAT])
+    return {
+        'dateFormat': date_format,
+        'dateFormatList': list(date_format_list),
+        'dateTimeFormat': "{0} HH:mm".format(date_format),
+    }
+
+
 def client_config():
     if not current_user.is_api_user() and current_user.is_authenticated:
         client_config = {
@@ -166,10 +173,22 @@ def client_config():
     else:
         client_config = {}
 
-    client_config.update(settings.COMMON_CLIENT_CONFIG)
+    defaults = {
+        'allowScriptsInUserInput': settings.ALLOW_SCRIPTS_IN_USER_INPUT,
+        'showPermissionsControl': settings.FEATURE_SHOW_PERMISSIONS_CONTROL,
+        'allowCustomJSVisualizations': settings.FEATURE_ALLOW_CUSTOM_JS_VISUALIZATIONS,
+        'autoPublishNamedQueries': settings.FEATURE_AUTO_PUBLISH_NAMED_QUERIES,
+        'mailSettingsMissing': settings.MAIL_DEFAULT_SENDER is None,
+        'dashboardRefreshIntervals': settings.DASHBOARD_REFRESH_INTERVALS,
+        'queryRefreshIntervals': settings.QUERY_REFRESH_INTERVALS,
+        'googleLoginEnabled': settings.GOOGLE_OAUTH_ENABLED,
+    }
+
+    client_config.update(defaults)
     client_config.update({
         'basePath': base_href()
     })
+    client_config.update(date_format_config())
 
     return client_config
 
@@ -191,11 +210,8 @@ def session(org_slug=None):
             'apiKey': current_user.id
         }
     else:
-        email_md5 = hashlib.md5(current_user.email.lower()).hexdigest()
-        gravatar_url = "https://www.gravatar.com/avatar/%s?s=40" % email_md5
-
         user = {
-            'gravatar_url': gravatar_url,
+            'profile_image_url': current_user.profile_image_url,
             'id': current_user.id,
             'name': current_user.name,
             'email': current_user.email,

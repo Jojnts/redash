@@ -3,7 +3,8 @@ import 'brace/mode/python';
 import 'brace/mode/sql';
 import 'brace/mode/json';
 import 'brace/ext/language_tools';
-import { map } from 'underscore';
+import 'brace/ext/searchbox';
+import { map } from 'lodash';
 
 // By default Ace will try to load snippet files for the different modes and fail.
 // We don't need them, so we use these placeholders until we define our own.
@@ -18,7 +19,7 @@ defineDummySnippets('python');
 defineDummySnippets('sql');
 defineDummySnippets('json');
 
-function queryEditor(QuerySnippet) {
+function queryEditor(QuerySnippet, $timeout) {
   return {
     restrict: 'E',
     scope: {
@@ -42,8 +43,30 @@ function queryEditor(QuerySnippet) {
             autoScrollEditorIntoView: true,
           },
           onLoad(editor) {
+            $scope.$on('query-editor.command', ($event, command, ...args) => {
+              switch (command) {
+                case 'focus': {
+                  editor.focus();
+                  break;
+                }
+                case 'paste': {
+                  const [text] = args;
+                  editor.session.doc.replace(editor.selection.getRange(), text);
+                  const range = editor.selection.getRange();
+                  $scope.query.query = editor.session.getValue();
+                  $timeout(() => {
+                    editor.selection.setRange(range);
+                  });
+                  break;
+                }
+                default:
+                  break;
+              }
+            });
+
             // Release Cmd/Ctrl+L to the browser
             editor.commands.bindKey('Cmd+L', null);
+            editor.commands.bindKey('Ctrl+P', null);
             editor.commands.bindKey('Ctrl+L', null);
 
             QuerySnippet.query((snippets) => {
@@ -72,8 +95,10 @@ function queryEditor(QuerySnippet) {
 
             $scope.$watch('schema', (newSchema, oldSchema) => {
               if (newSchema !== oldSchema) {
-                const tokensCount =
-                  newSchema.reduce((totalLength, table) => totalLength + table.columns.length, 0);
+                if (newSchema === undefined) {
+                  return;
+                }
+                const tokensCount = newSchema.reduce((totalLength, table) => totalLength + table.columns.length, 0);
                 // If there are too many tokens we disable live autocomplete,
                 // as it makes typing slower.
                 if (tokensCount > 5000) {
@@ -91,7 +116,6 @@ function queryEditor(QuerySnippet) {
             editor.focus();
           },
         };
-
 
         const schemaCompleter = {
           getCompletions(state, session, pos, prefix, callback) {
@@ -112,18 +136,16 @@ function queryEditor(QuerySnippet) {
                 });
               });
 
-              $scope.schema.keywords = map(keywords, (v, k) =>
-                ({
-                  name: k,
-                  value: k,
-                  score: 0,
-                  meta: v,
-                }));
+              $scope.schema.keywords = map(keywords, (v, k) => ({
+                name: k,
+                value: k,
+                score: 0,
+                meta: v,
+              }));
             }
             callback(null, $scope.schema.keywords);
           },
         };
-
 
         window.ace.acequire(['ace/ext/language_tools'], (langTools) => {
           langTools.addCompleter(schemaCompleter);
