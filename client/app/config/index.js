@@ -1,7 +1,10 @@
 // This polyfill is needed to support PhantomJS which we use to generate PNGs from embeds.
 import 'core-js/fn/typed/array-buffer';
 
-import 'pace-progress';
+// Ensure that this image will be available in assets folder
+import '@/assets/images/avatar.svg';
+
+import * as Pace from 'pace-progress';
 import debug from 'debug';
 import angular from 'angular';
 import ngSanitize from 'angular-sanitize';
@@ -17,8 +20,7 @@ import 'angular-moment';
 import 'brace';
 import 'angular-ui-ace';
 import 'angular-resizable';
-import ngGridster from 'angular-gridster';
-import { each } from 'underscore';
+import { each, isFunction, extend } from 'lodash';
 
 import '@/lib/sortable';
 
@@ -29,6 +31,14 @@ import dateTimeFilter from '@/filters/datetime';
 import dashboardGridOptions from './dashboard-grid-options';
 
 const logger = debug('redash:config');
+
+Pace.options.shouldHandlePushState = (prevUrl, newUrl) => {
+  // Show pace progress bar only if URL path changed; when query params
+  // or hash changed - ignore that history event
+  const [prevPrefix] = prevUrl.split('?');
+  const [newPrefix] = newUrl.split('?');
+  return prevPrefix !== newPrefix;
+};
 
 const requirements = [
   ngRoute,
@@ -44,7 +54,6 @@ const requirements = [
   'angularResizable',
   vsRepeat,
   'ui.sortable',
-  ngGridster.name,
 ];
 
 const ngModule = angular.module('app', requirements);
@@ -57,13 +66,19 @@ function registerAll(context) {
     .map(context)
     .map(module => module.default);
 
-  return modules.map(f => f(ngModule));
+  return modules.filter(isFunction).map(f => f(ngModule));
+}
+
+function requireImages() {
+  // client/app/assets/images/<path> => /images/<path>
+  const ctx = require.context('@/assets/images/', true, /\.(png|jpe?g|gif|svg)$/);
+  ctx.keys().forEach(ctx);
 }
 
 function registerComponents() {
   // We repeat this code in other register functions, because if we don't use a literal for the path
   // Webpack won't be able to statcily analyze our imports.
-  const context = require.context('@/components', true, /^((?![\\/]test[\\/]).)*\.js$/);
+  const context = require.context('@/components', true, /^((?![\\/]test[\\/]).)*\.jsx?$/);
   registerAll(context);
 }
 
@@ -84,14 +99,31 @@ function registerPages() {
     ngModule.config(($routeProvider) => {
       each(routes, (route, path) => {
         logger('Registering route: %s', path);
-        // This is a workaround, to make sure app-header and footer are loaded only
-        // for the authenticated routes.
-        // We should look into switching to ui-router, that has built in support for
-        // such things.
-        route.template = `<app-header></app-header><route-status></route-status>${route.template}<footer></footer>`;
         route.authenticated = true;
+        route.resolve = extend(
+          {
+            __organizationStatus: (OrganizationStatus) => {
+              'ngInject';
+
+              return OrganizationStatus.refresh();
+            },
+          },
+          route.resolve,
+        );
         $routeProvider.when(path, route);
       });
+    });
+  });
+
+  ngModule.config(($routeProvider) => {
+    $routeProvider.otherwise({
+      resolve: {
+        // Ugly hack to show 404 when hitting an unknown route.
+        error: () => {
+          const error = { status: 404 };
+          throw error;
+        },
+      },
     });
   });
 }
@@ -102,6 +134,7 @@ function registerFilters() {
   });
 }
 
+requireImages();
 registerDirectives(ngModule);
 registerServices();
 registerFilters();

@@ -1,10 +1,20 @@
-Welcome to Redash's GitHub repo! 👋🎉
+<!--
+#####################################################################
+#
+# Need support? USE THE FORUM! https://discuss.redash.io/c/support.
+#
+# Don't have steps to reproduce and actually not sure it's a bug?
+# Use the forum! https://discuss.redash.io/c/support.
+#
+#####################################################################
 
-Do you need help or have a question? Checkout the Support category in our discussion forum: https://discuss.redash.io/c/support. 
-
-Got an idea for a new feature? Check if it isn't on the roadmap already: http://bit.ly/redash-roadmap and start a new discussion in the features category: https://discuss.redash.io/c/feature-requests 🌟.
+**Got an idea for a new feature?** Check if it isn't on the roadmap already: http://bit.ly/redash-roadmap and start a new discussion in the features category: https://discuss.redash.io/c/feature-requests 🌟.
 
 Found a bug? Please fill out the sections below... thank you 👍
+
+Found a security vulnerability? Please email security@redash.io to report any security vulnerabilities. We will acknowledge receipt of your vulnerability and strive to send you regular updates about our progress. If you're curious about the status of your disclosure please feel free to email us again. If you want to encrypt your disclosure email, you can use this PGP key.
+
+-->
 
 ### Issue Summary
 

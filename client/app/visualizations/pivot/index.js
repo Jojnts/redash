@@ -4,6 +4,7 @@ import 'pivottable';
 import 'pivottable/dist/pivot.css';
 
 import editorTemplate from './pivottable-editor.html';
+import './pivot.less';
 
 
 function pivotTableRenderer() {
@@ -21,7 +22,7 @@ function pivotTableRenderer() {
           $scope.visualization.options.controls &&
           $scope.visualization.options.controls.enabled;
 
-        document.querySelectorAll('.pvtAxisContainer, .pvtRenderer, .pvtVals').forEach((control) => {
+        element[0].querySelectorAll('.pvtAxisContainer, .pvtRenderer, .pvtVals').forEach((control) => {
           if (hideControls) {
             control.style.display = 'none';
           } else {

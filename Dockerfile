@@ -10,6 +10,7 @@ RUN npm install && npm run build && rm -rf node_modules
 RUN chown -R redash /app
 USER redash
 
-ENTRYPOINT ["/app/bin/docker-entrypoint"]
-
 EXPOSE 5000
+
+ENTRYPOINT ["/app/bin/docker-entrypoint"]
+CMD ["server"]

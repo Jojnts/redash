@@ -1,19 +1,16 @@
 class PaginatorCtrl {
-  constructor() {
-    this.page = this.paginator.page;
-  }
   pageChanged() {
-    this.paginator.setPage(this.page);
+    this.paginator.setPage(this.paginator.page);
   }
 }
 
 export default function init(ngModule) {
   ngModule.component('paginator', {
     template: `
-<div class="text-center" ng-if="$ctrl.paginator.totalCount > $ctrl.paginator.itemsPerPage">
+<div class="paginator-container" ng-if="$ctrl.paginator.totalCount > $ctrl.paginator.itemsPerPage">
   <ul uib-pagination total-items="$ctrl.paginator.totalCount"
                      items-per-page="$ctrl.paginator.itemsPerPage"
-                     ng-model="$ctrl.page"
+                     ng-model="$ctrl.paginator.page"
                      max-size="6"
                      class="pagination"
                      boundary-link-numbers="true"
