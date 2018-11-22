@@ -1,3 +1,6 @@
+# ja-redash
+See [doc.md](./doc.md)
+
 <p align="center">
   <img title="Redash" src='https://redash.io/assets/images/logo.png' width="200px"/>
 </p>
@@ -28,7 +31,7 @@ Today **_Redash_** has support for querying multiple databases, including: Redsh
 
 ## Supported Data Sources
 
-Redash supports more than 25 [data sources](https://redash.io/help/data-sources/supported-data-sources). 
+Redash supports more than 25 [data sources](https://redash.io/help/data-sources/supported-data-sources).
 
 ## Getting Help
 
