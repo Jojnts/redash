@@ -19,14 +19,15 @@ First, dump the current redash database from Aptible:
     4. Deprovision backup db container: `aptible db:deprovision redash-db-backup`
 
 2. Before building the app with `docker-compose up`, add the dump file path to `.dockerignore` temporarily (or move it out of the project directory).
-3. `docker-compose up`
-4. Import the dump into the running postgres container:
+3. `docker-compose up -d`
+4. Build static assets: `npm install && npm run build`
+5. Import the dump into the running postgres container:
     1. `docker-compose stop server worker`
     2. `docker-compose exec -u postgres postgres dropdb postgres && docker-compose exec -u postgres postgres createdb postgres`
     3. `cat redash-db-backup.dump | docker-compose exec -T -u postgres postgres psql`
     4. `docker-compose up -d`
 
-5. Since we use OAUth on production, it won't be possible (easily at least) to login with your normal user account, therefore, create a new one:
+6. Since we use OAUth on production, it won't be possible (easily at least) to login with your normal user account, therefore, create a new one:
     1. `docker-compose exec server bash`
     2. `./manage.py users create admin@jojnts.com admin --admin`
 
@@ -36,14 +37,12 @@ We host our own instance of Redash on Aptible: `ja-redash`.
 2. Run through the steps above locally with a fresh production dump to make sure everything is fine.
 3. Push changes to `origin`
 4. Push changes to `aptible`: `git push aptible master`
-5. SSH in to the app and manually:
-    1. Build static assets: `cd app; npm install && npm run build`
-    2. Run migration: `/app/manage.py db upgrade`
+5. SSH in to the app and manually run the migrations: `/app/manage.py db upgrade`
 
 ## Special case: upgrading from 4.0.0 to 5.0.2
 Unfortunately Redash migrations aren't completely forwards compatible - there is a migration: [migrations/versions/969126bd800f_.py](migrations/versions/969126bd800f_.py) that must have the "dashboard.tags" column available. So before running the migration script, manually create that column:
 ```sql
-ALTER TABLE dashboards ADD COLUMN tags varchar
+ALTER TABLE dashboards ADD COLUMN tags text[]
 ```
 Now, `manage db upgrade` should work properly.
 
