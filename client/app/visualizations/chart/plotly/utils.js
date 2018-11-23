@@ -8,30 +8,32 @@ import { createFormatter, formatSimpleTemplate } from '@/lib/value-format';
 
 // The following colors will be used if you pick "Automatic" color.
 const BaseColors = {
-  Blue: '#356AFF',
-  Red: '#E92828',
-  Green: '#3BD973',
-  Purple: '#604FE9',
-  Cyan: '#50F5ED',
-  Orange: '#FB8D3D',
-  'Light Blue': '#799CFF',
-  Lilac: '#B554FF',
-  'Light Green': '#8CFFB4',
-  Brown: '#A55F2A',
-  Black: '#000000',
-  Gray: '#494949',
-  Pink: '#FF7DE3',
-  'Dark Blue': '#002FB4',
+  // Default seaborn color palette: https://seaborn.pydata.org/tutorial/color_palettes.html
+  Blue: '#4c72b0',
+  Red: '#c44e52',
+  Orange: '#dd8452',
+  Grey: '#8c8c8c',
+  Green: '#55a868',
+  Purple: '#8172b3',
+  Tan: '#ccb974',
+  Brown: '#937860',
+  Pink: '#da8bc3',
+  Turqouise: '#64b5cd',
 };
 
 // Additional colors for the user to choose from:
 export const ColorPalette = Object.assign({}, BaseColors, {
-  'Indian Red': '#981717',
-  'Green 2': '#17BF51',
-  'Green 3': '#049235',
-  DarkTurquoise: '#00B6EB',
-  'Dark Violet': '#A58AFF',
-  'Pink 2': '#C63FA9',
+  // Selected colors from xkcd survey: https://xkcd.com/color/rgb/
+  'light green': '#96f97b',
+  'royal blue': '#0504aa',
+  'blood red': '#980002',
+  charcoal: '#343837',
+  'dark turquoise': '#045c5a',
+  scarlet: '#be0119',
+  'dark violet': '#34013f',
+  'golden yellow': '#fec615',
+  shit: '#7f5f00',
+  'baby shit brown': '#ad900d',
 });
 
 const ColorPaletteArray = values(BaseColors);
