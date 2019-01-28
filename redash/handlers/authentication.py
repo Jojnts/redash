@@ -167,7 +167,7 @@ def date_format_config():
 def client_config():
     if not current_user.is_api_user() and current_user.is_authenticated:
         client_config = {
-            'newVersionAvailable': get_latest_version(),
+            'newVersionAvailable': bool(get_latest_version()),
             'version': __version__
         }
     else:
@@ -175,13 +175,15 @@ def client_config():
 
     defaults = {
         'allowScriptsInUserInput': settings.ALLOW_SCRIPTS_IN_USER_INPUT,
-        'showPermissionsControl': settings.FEATURE_SHOW_PERMISSIONS_CONTROL,
+        'showPermissionsControl': current_org.get_setting("feature_show_permissions_control"),
         'allowCustomJSVisualizations': settings.FEATURE_ALLOW_CUSTOM_JS_VISUALIZATIONS,
         'autoPublishNamedQueries': settings.FEATURE_AUTO_PUBLISH_NAMED_QUERIES,
         'mailSettingsMissing': settings.MAIL_DEFAULT_SENDER is None,
         'dashboardRefreshIntervals': settings.DASHBOARD_REFRESH_INTERVALS,
         'queryRefreshIntervals': settings.QUERY_REFRESH_INTERVALS,
         'googleLoginEnabled': settings.GOOGLE_OAUTH_ENABLED,
+        'pageSize': settings.PAGE_SIZE,
+        'pageSizeOptions': settings.PAGE_SIZE_OPTIONS,
     }
 
     client_config.update(defaults)
