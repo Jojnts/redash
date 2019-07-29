@@ -5,31 +5,28 @@ See https://redash.io/help/open-source/dev-guide/docker for details, but basical
 docker-compose up
 # Create (fresh) database
 docker-compose run --rm server create_db
-# Build frontend
-npm install
-npm run build
 ```
 
 # Running locally with prod database
 First, dump the current redash database from Aptible:
 1. Make a snapshot of the database: `aptible db:backup ja-redash`
-    1. List backups to get the id (denote it `x`) of the backup just created: `aptible backups:list ja-redash`
+    1. List backups to get the id (denote it `x`) of the backup just created: `aptible backup:list ja-redash`
     2. Restore into a (temporary) database container with the handle `redash-db-backup`: `aptible backup:restore x --handle redash-db-backup`
     3. Download a dump: `aptible db:dump redash-db-backup`, you'll get a file `redash-db-backup.dump`
     4. Deprovision backup db container: `aptible db:deprovision redash-db-backup`
 
 2. Before building the app with `docker-compose up`, add the dump file path to `.dockerignore` temporarily (or move it out of the project directory).
 3. `docker-compose up -d`
-4. Build static assets: `npm install && npm run build`
-5. Import the dump into the running postgres container:
+4. Import the dump into the running postgres container:
     1. `docker-compose stop server worker`
     2. `docker-compose exec -u postgres postgres dropdb postgres && docker-compose exec -u postgres postgres createdb postgres`
     3. `cat redash-db-backup.dump | docker-compose exec -T -u postgres postgres psql`
     4. `docker-compose up -d`
 
-6. Since we use OAUth on production, it won't be possible (easily at least) to login with your normal user account, therefore, create a new one:
+5. Since we use OAUth on production, it won't be possible (easily at least) to login with your normal user account, therefore, create a new one:
     1. `docker-compose exec server bash`
-    2. `./manage.py users create admin@jojnts.com admin --admin`
+    2. `./manage.py db upgrade` (if a Redash upgrade requires migrations to be run)
+    3. `./manage.py users create admin@jojnts.com admin --admin`
 
 # Upgrading to latest on production
 We host our own instance of Redash on Aptible: `ja-redash`.
