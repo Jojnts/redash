@@ -108,7 +108,10 @@ function getHoverInfoPattern(options) {
   return result;
 }
 
-export function normalizeValue(value, dateTimeFormat = 'YYYY-MM-DD HH:mm:ss') {
+export function normalizeValue(value, axisType, dateTimeFormat = 'YYYY-MM-DD HH:mm:ss') {
+  if (axisType === 'datetime' && moment.utc(value).isValid()) {
+    value = moment.utc(value);
+  }
   if (moment.isMoment(value)) {
     return value.format(dateTimeFormat);
   }
@@ -271,7 +274,7 @@ function preparePieData(seriesList, options) {
         yPercent: y / seriesTotal * 100,
         raw: extend({}, row.$raw, {
           // use custom display format - see also `updateSeriesText`
-          '@@x': normalizeValue(row.x, options.dateTimeFormat),
+          '@@x': normalizeValue(row.x, options.xAxis.type, options.dateTimeFormat),
         }),
       });
     });
@@ -429,19 +432,19 @@ function prepareChartData(seriesList, options) {
     const seriesColor = getSeriesColor(seriesOptions, index);
 
     // Sort by x - `Map` preserves order of items
-    const data = sortX ? sortBy(series.data, d => normalizeValue(d.x)) : series.data;
+    const data = sortX ? sortBy(series.data, d => normalizeValue(d.x, options.xAxis.type)) : series.data;
 
-    // For bubble charts `y` may be any (similar to `x`) - numeric is only bubble size;
+    // For bubble/scatter charts `y` may be any (similar to `x`) - numeric is only bubble size;
     // for other types `y` is always number
-    const cleanYValue = seriesOptions.type === 'bubble' ? normalizeValue : cleanNumber;
+    const cleanYValue = includes(['bubble', 'scatter'], seriesOptions.type) ? normalizeValue : cleanNumber;
 
     const sourceData = new Map();
     const xValues = [];
     const yValues = [];
     const yErrorValues = [];
     each(data, (row) => {
-      const x = normalizeValue(row.x); // number/datetime/category
-      const y = cleanYValue(row.y); // depends on series type!
+      const x = normalizeValue(row.x, options.xAxis.type); // number/datetime/category
+      const y = cleanYValue(row.y, options.yAxis[0].type); // depends on series type!
       const yError = cleanNumber(row.yError); // always number
       const size = cleanNumber(row.size); // always number
       sourceData.set(x, {
@@ -452,7 +455,7 @@ function prepareChartData(seriesList, options) {
         yPercent: null, // will be updated later
         raw: extend({}, row.$raw, {
           // use custom display format - see also `updateSeriesText`
-          '@@x': normalizeValue(row.x, options.dateTimeFormat),
+          '@@x': normalizeValue(row.x, options.xAxis.type, options.dateTimeFormat),
         }),
       });
       xValues.push(x);
@@ -555,7 +558,7 @@ export function prepareLayout(element, seriesList, options, data) {
           y: yPosition + cellHeight - 0.015,
           xanchor: 'center',
           yanchor: 'top',
-          text: series.name,
+          text: options.seriesOptions[series.name].name || series.name,
           showarrow: false,
         };
       }));
@@ -641,7 +644,7 @@ function updateSeriesText(seriesList, options) {
       };
       const item = series.sourceData.get(x);
       if (item) {
-        text['@@y'] = seriesOptions.type === 'bubble' ? item.y : series.formatNumber(item.y);
+        text['@@y'] = includes(['bubble', 'scatter'], seriesOptions.type) ? item.y : series.formatNumber(item.y);
         if (item.yError !== undefined) {
           text['@@yError'] = series.formatNumber(item.yError);
         }
