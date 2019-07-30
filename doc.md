@@ -1,4 +1,4 @@
-# Running locally
+## Running locally
 See https://redash.io/help/open-source/dev-guide/docker for details, but basically:
 ```sh
 # Create Docker services
@@ -7,7 +7,7 @@ docker-compose up
 docker-compose run --rm server create_db
 ```
 
-# Running locally with prod database
+## Running locally with prod database
 First, dump the current redash database from Aptible:
 1. Make a snapshot of the database: `aptible db:backup ja-redash`
     1. List backups to get the id (denote it `x`) of the backup just created: `aptible backup:list ja-redash`
@@ -28,15 +28,30 @@ First, dump the current redash database from Aptible:
     2. `./manage.py db upgrade` (if a Redash upgrade requires migrations to be run)
     3. `./manage.py users create admin@jojnts.com admin --admin`
 
-# Upgrading to latest on production
-We host our own instance of Redash on Aptible: `ja-redash`.
-1. Add the upstream git remote as `upstream` and merge in desired tag like so: `git merge vX.Y.Z`
+## Upgrading Redash version
+1. Add the upstream git remote as `upstream` and merge in desired tag like so: `git merge vX.Y.Z` where `vX.Y.Z` refers to a specific git tag from upstream.
 2. Run through the steps above locally with a fresh production dump to make sure everything is fine.
-3. Push changes to `origin`
-4. Push changes to `aptible`: `git push aptible master`
+3. Deploy.
+
+## Deploying
+We host our own instance of Redash on Aptible: `ja-redash`.
+Since Aptible does not support multi-stage Docker builds, we can't use Dockerfile deploy (anymore). Instead we use [Aptible Direct Image Deploy](https://www.aptible.com/documentation/deploy/reference/apps/image/direct-docker-image-deploy/using-aptible-deploy.html),
+it works by first building the image ourselves locally (typically done by CI), then pushing it to a Docker registry.
+We use TreeScale as our Docker registry.
+1. Build the image locally like so `docker build . -t ja-redash:vX` where X should denote the version of Redash you're building.
+2. Tag the image `docker tag xxxx repo.treescale.com/axellarsson/ja-redash:vX` where xxx is the id of the recently built Docker image (`docker images | grep ja-redash | grep latest`)
+3. Push it to the registry `docker push repo.treescale.com/axellarsson/ja-redash:vX`
+4.
+```
+aptible deploy --app ja-redash \
+        --docker-image repo.treescale.com/axellarsson/ja-redash:vX \
+        --private-registry-username <tree-scale-username> \
+        --private-registry-password <tree-scale-password>
+```
+
 5. SSH in to the app and manually run the migrations: `/app/manage.py db upgrade`
 
-## Special case: upgrading from 4.0.0 to 5.0.2
+### Special case: upgrading from 4.0.0 to 5.0.2
 Unfortunately Redash migrations aren't completely forwards compatible - there is a migration: [migrations/versions/969126bd800f_.py](migrations/versions/969126bd800f_.py) that must have the "dashboard.tags" column available. So before running the migration script, manually create that column:
 ```sql
 ALTER TABLE dashboards ADD COLUMN tags text[]

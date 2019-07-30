@@ -20,6 +20,11 @@ RUN if [ "x$skip_ds_deps" = "x" ] ; then pip install -r requirements_all_ds.txt 
 
 COPY . /app
 COPY --from=frontend-builder /frontend/client/dist /app/client/dist
+
+# Embed Procfile for Direct Docker Image Deploy
+RUN mkdir /.aptible/
+ADD Procfile /.aptible/Procfile
+
 RUN chown -R redash /app
 USER redash
 
